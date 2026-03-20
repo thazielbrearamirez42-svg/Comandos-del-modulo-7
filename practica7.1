@@ -1,0 +1,85 @@
+# Comandos-del-modulo-7
+Laboratorio 7.1  Compartir Archivos entre Linux utilizando NFS
+
+   #Actualizamos y instalamos:
+Instalar NFS en el servidor
+sudo dnf update
+sudo dnf install nfs-utils -y
+
+Habilitar e iniciar el servicio
+sudo systemctl enable --now nfs-server
+
+Verificar:
+sudo systemctl status nfs-server
+
+# Crear el directorio compartido
+
+sudo mkdir -p /var/nfs/os3
+ cd  /var/nfs/os3
+sudo touch Adrian{1..100}.txt
+
+#Asiganr permisos para que sea accesible :
+sudo chmod 755 /var/nfs/os3
+sudo chown nobody:nobody /var/nfs/os3
+
+#Configurar los directorios compartidos
+Editar:
+sudo nano /etc/exports
+Agregar:
+/var/nfs/os3 192.168.1.132(rw,sync,no_subtree_check)
+ 
+# Aplicar configuración
+sudo exportfs -rav
+
+#Reiniciar servicio:
+sudo systemctl restart nfs-server
+
+Verificar:
+showmount -e
+
+# Configurar el firewall
+En RHEL 9 el firewall está activo por defecto.
+
+sudo firewall-cmd --permanent --add-service=nfs
+sudo firewall-cmd --reload
+
+#Maquina cliente: Actualizamos repositorios
+sudo dnf update -y
+
+# En la máquina cliente instalar NFS
+sudo dnf install nfs-utils -y
+
+#Crear punto de montaje
+sudo mkdir -p /home/os3
+
+sudo firewall-cmd --permanent --add-service=nfs
+
+# Montar el directorio del servidor
+sudo mount -t nfs 192.168.1.133:/var/nfs/os3 /home/os3/
+
+
+#Verificar:
+ls /home/os3
+
+#Editar para que el montaje sea permanente
+sudo nano /etc/fstab
+
+#Agregar:
+192.168.1.133:/var/nfs/os3 /home/os3 nfs defaults 0 0
+
+#cargar systemd para que lea los cambios:
+sudo systemctl daemon-reload
+
+Montar todos los sistemas de fstab sin reiniciar:
+sudo mount -a
+
+#Reinicia la máquina cliente:
+sudo reboot
+
+ verificar el montaje:
+df-h
+
+Después del reinicio (para ver si copiaron los archivos )
+ls /home/os3
+
+df -h | grep os3
