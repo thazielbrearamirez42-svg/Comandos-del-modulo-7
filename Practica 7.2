@@ -1,0 +1,78 @@
+Laboratorio 7.2 :Creación de fileserver compatible con windows
+ 
+#Instalar y habilitar SAMBA (Servidor Linux)
+sudo dnf install samba samba-common samba-client -y
+
+#Habilitar servicios de smb:
+sudo systemctl enable --now smb
+sudo systemctl status smb
+
+# Crear carpeta compartida
+sudo mkdir -p /srv/samba/os3
+
+# Crear archivos requeridos y asignar permisos necesarios:
+sudo chcon -R -t samba_share_t /srv/samba/os3
+cd /srv/samba/os3
+sudo touch adrian{1..100}.txt 
+sudo chown -R tbrea:os3grupo /srv/samba/os3
+sudo chmod -R 770 /srv/samba/os3
+ls
+#Configurar firewall 
+sudo firewall-cmd --add-service=samba --permanent
+sudo firewall-cmd --reload
+
+#Configurar SAMBA: sudo nano /etc/samba/smb.conf
+Agrega al final:
+[OS3]
+path = /srv/samba/os3
+valid users = tbrea
+read only = no
+browsable = yes
+ 
+#Crear grupo y usuario en samba
+sudo groupadd os3grupo
+sudo useradd -M -s /sbin/nologin tbrea
+sudo smbpasswd -a tbrea
+sudo usermod -aG os3grupo tbrea
+
+ls -ld /srv/samba/os3
+
+ #Reiniciar servicio
+sudo systemctl restart smb
+
+#1 En Windows (mapear unidad de red)
+En el explorador de archivos:
+
+-Clic en Este equipo
+-Clic en Conectar unidad de red
+
+En carpeta escribe:
+\\192.168.1.133\OS3
+
+Marca:
+ Conectar usando credenciales diferentes
+
+-Usuario:
+tbrea
+-Contraseña: (la que creaste con smbpasswd)
+
+Deberías ver los 100 archivos adrian1.txt ... adrian100.txt
+#2 Modificar archivo desde Windows
+
+d /srv/samba/os3
+Abre:
+adrian99.txt
+
+Agrega:
+
+Guarda el archivo
+#3 Verificar desde Linux
+
+En el servidor:
+cat /srv/samba/os3/adrian99.txt
+-Debe mostrar:
+
+Archivo 99
+el zumzum de la carabela
+
+
