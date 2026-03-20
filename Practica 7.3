@@ -1,0 +1,145 @@
+Laboratorio 7.3 INSTALACIÓN Y CONFIGURACIÓN DE SAMBA COMO CONTROLADOR DE DOMINIO windows(OS3.INET)
+
+y ahora :NSTALACIÓN Y CONFIGURACIÓN DE SAMBA COMO CONTROLADOR DE DOMINIO windows(OS3.INET)
+
+1. Preparación del sistema
+hostnamectl set-hostname dc1.inet
+sudo nano /etc/hosts 
+192.168.1.78 dc1.so3.inet dc1
+
+Verificamos el cambio:
+hostname -f 
+
+dnf -y update
+sudo dnf install -y https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm
+dnf config-manager --set-enabled crb
+dnf -y install wget tar gcc make python3-devel
+
+sudo dnf makecache
+
+2. Descarga e instalación de Samba
+----------------------------------
+
+sudo dnf -y install \
+docbook-style-xsl python3-markdown bison dbus-devel flex gdb \
+gnutls-devel jansson-devel keyutils-libs-devel krb5-workstation libacl-devel \
+libaio-devel libarchive-devel libattr-devel libblkid-devel libtasn1 libtasn1-tools \
+libxml2-devel libxslt lmdb-devel openldap-devel pam-devel perl perl-ExtUtils-MakeMaker \
+perl-Parse-Yapp popt-devel python3-cryptography python3-dns python3-gpg python3-devel \
+readline-devel rpcgen systemd-devel zlib-devel perl-JSON gpgme-devel
+
+mkdir -p /samba && cd /samba
+wget https://download.samba.org/pub/samba/stable/samba-4.19.0.tar.gz
+tar -xvzf samba-4.19.0.tar.gz
+cd samba-4.19.0
+ls
+
+-COMPILAR:
+./configure --prefix=/usr/local/samba --enable-fhs --with-ads --with-systemd
+make -j$(nproc)
+sudo make install
+
+3. Configurar PATH global
+-------------------------
+ echo 'export PATH=/usr/local/samba/bin:/usr/local/samba/sbin:$PATH' >> ~/.bash_profile
+source ~/.bash_profile
+o
+echo 'export PATH=$PATH:/usr/local/samba/bin:/usr/local/samba/sbin' >> ~/.bashrc
+source ~/.bashrc
+
+
+4.Provisión del dominio: interfaz ens160
+samba-tool domain provision --use-rfc2307 --interactive --option="interfaces= lo ens160" --options="bind interfaces only=yes"
+
+DOMAIN="OS3.inet"
+Nombre de Controlador=dc
+DOMAIN NAMe=OS3
+DOMAIN_PASS=7 CARACTERES 
+--dns-backend=SAMBA_INTERNAL 
+
+sudo nano /etc/resolv.conf :
+nameserver 127.0.0.1
+nameserver 8.8.8.8
+
+5.Iniciar servicio con :Samba
+Probamos DNS: ping 8.8.8.8
+ping OS3.inet
+ping dc1.inet
+
+
+6. Configuración de Kerberos
+----------------------------
+cp /usr/local/samba/private/krb5.conf /etc/krb5.conf 
+o 
+sudo cp /usr/local/samba/var/lib/samba/private/krb5.conf /etc/krb5.conf
+
+#Servico systemctl:
+sudo nano /etc/systemd/system/samba-ad-dc.service
+
+[Unit]
+Description=Samba AD DC
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/samba/sbin/samba -i
+
+[Install]
+WantedBy=multi-user.target
+
+#Iniciar servicio
+sudo setenforce 0
+sudo systemctl daemon-reload
+sudo systemctl enable --now samba-ad-dc
+
+Agregar reglas de firewall
+firewall-cmd --permanent --add-service={ldap,ldaps,kerberos,dns}
+firewall-cmd --permanent --add-port={53,88,135,139,389,445,464,636,3268,3269}/tcp
+firewall-cmd --permanent --add-port={53,88,123,138,389,464}/udp
+firewall-cmd --reload
+
+7.Configurar el DNS para que sea solo la ip del sevidor y aplicamos el cambio:
+sudo nmcli con mod ens160 ipv4.dns 192.168.1.78
+sudo nmcli con mod ens160 ipv4.ignore-auto-dns yes
+sudo nmcli con up ens160
+
+
+Agregar regisrto DN maquina cliente
+samba-tool dns add 192.168.1.78 OS3.inet www A 192.168.1.77 -U Administrator 
+
+
+EN VM DE WINDOWS:
+En la conf. de la tarjeta de Red cambiar DNS
+WIN+ R, escribir ncpa.cpl, click derecho>propiedades>Protcolo version 4 >mabiar DNS a manual>preferido> direc. del servidor> 
+
+Abrir cmd: 
+ipconfig /flushdns
+
+hacer :ping OS3.inet
+ping www.os3.inet
+ping OS3.inet
+
+Presiona:win+R >sysdmcpl>enter   ir>nombre del equipo> cambiar>miembro de un dominio> os3.inet
+Usuario:os3\Administrador 
+Contrasena: (La que conf. en servidor)
+
+
+Agregar usaurio lanegracubana: 
+
+sudo /usr/local/samba/bin/samba-tool user create lanegracubana "Thaziel20252192" --given-name="La negra" --surname="Cubana" --mail=lanegracubana@so3.inet
+
+Reiniciamos windows: entramos con el nuevo usuario 
+
+Agregamos opciones de firewall:
+Rango estándar de puertos dinámicos RPC:
+sudo firewall-cmd --permanent --add-port=49152-65535/tcp
+
+Recargar :
+sudo firewall-cmd --reload
+
+SELinux en modo permisivo permanente:
+ setsebool -P samba_domain_controller on
+
+Verificar
+sestatus
+
