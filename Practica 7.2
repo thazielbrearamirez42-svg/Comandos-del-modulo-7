@@ -28,12 +28,34 @@ path = /srv/samba/os3
 valid users = tbrea
 read only = no
 browsable = yes
+
+#Extra:
+[OS3]
+    comment = Repositorio de Laboratorio
+    path = /srv/samba/os3
+    valid users = tbrea
+    public = no
+    writable = yes
+    browsable = yes
+    guest ok = no
+    create mask = 0660
+    directory mask = 0770
+
+    
  
 #Crear grupo y usuario en samba
 sudo groupadd os3grupo
 sudo useradd -M -s /sbin/nologin tbrea
 sudo smbpasswd -a tbrea
 sudo usermod -aG os3grupo tbrea
+
+# Extra:
+sudo smbpasswd -a tbrea
+
+# Luego aplicas los permisos a la carpeta
+sudo chown -R tbrea:os3grupo /srv/samba/os3
+sudo chmod -R 770 /srv/samba/os3
+
 
 ls -ld /srv/samba/os3
 
@@ -47,7 +69,8 @@ En el explorador de archivos:
 -Clic en Conectar unidad de red
 
 En carpeta escribe:
-\\192.168.1.133\OS3
+\\192.168.1.133\OS3   or Public
+
 
 Marca:
  Conectar usando credenciales diferentes
