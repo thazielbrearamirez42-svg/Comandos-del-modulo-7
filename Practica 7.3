@@ -86,6 +86,34 @@ ExecStart=/usr/local/samba/sbin/samba -i
 
 [Install]
 WantedBy=multi-user.target
+======================
+
+Crear el directorio
+sudo mkdir -p /srv/samba/compartido_dominio
+
+# IMPORTANTE: El grupo "Domain Users" lleva un espacio. 
+# En Linux, para que el comando chown funcione con espacios, se usa así:
+sudo chown :"Domain Users" /srv/samba/compartido_dominio
+
+# Permisos totales para el grupo del dominio
+sudo chmod 770 /srv/samba/compartido_dominio
+
+Permitir que Samba exporte carpetas con lectura/escritura
+sudo setsebool -P samba_export_all_rw on
+
+# Etiquetar la carpeta para que Samba tenga acceso
+sudo chcon -t samba_share_t /srv/samba/compartido_dominio
+
+sudo nano /usr/local/samba/etc/smb.conf  :Agregamos al final:
+[CompartidoAD]
+    path = /srv/samba/compartido_dominio
+    read only = no
+    browsable = yes
+    create mask = 0775
+    directory mask = 0775
+    admin users = OS3\Administrator
+    
+    =============================
 
 #Iniciar servicio
 sudo setenforce 0
